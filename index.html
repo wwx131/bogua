@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1a1a2e">
+<meta name="format-detection" content="telephone=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="周易卜卦">
+<meta name="description" content="周易卜卦 · 三币起卦，手机端单文件应用，可离线使用">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='36' fill='%231a1a2e'/%3E%3Ccircle cx='90' cy='90' r='60' fill='%23c9a959'/%3E%3Ctext x='90' y='118' font-size='70' text-anchor='middle' fill='%231a1a2e' font-family='serif'%3E%E4%B9%BE%3C/text%3E%3C/svg%3E">
+<link rel="manifest" href="manifest.webmanifest">
+<title>周易卜卦 · 三币起卦</title>
+<style>
+:root {
+  --bg: #1a1a2e;
+  --card-bg: #16213e;
+  --gold: #c9a959;
+  --gold-light: #e8d5a3;
+  --yin: #2d2d44;
+  --text: #d4c9b8;
+  --text-light: #a89b8c;
+  --shadow: 0 4px 24px rgba(0,0,0,0.4);
+  /* 卦爻尺寸：随屏幕自适应，保证在手机上完整显示 */
+  --bar-unit: clamp(27px, 10.2vw, 44px);
+  --bar-radius: 6px;
+  --gap: 5px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body {
+  font-family: 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', 'KaiTi', serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  touch-action: manipulation;
+  background-image:
+    radial-gradient(ellipse at 50% 0%, rgba(201,169,89,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse at 50% 100%, rgba(201,169,89,0.05) 0%, transparent 50%);
+  background-attachment: fixed;
+}
+/* 顶部安全区（刘海屏） */
+.header {
+  text-align: center;
+  width: 100%;
+  padding: calc(env(safe-area-inset-top, 0px) + 18px) 16px 10px;
+}
+.header h1 {
+  font-size: clamp(1.5rem, 6.4vw, 2.2rem);
+  color: var(--gold);
+  letter-spacing: .12em;
+  font-weight: 400;
+  text-shadow: 0 0 40px rgba(201,169,89,0.3);
+}
+.header p { font-size: .82rem; color: var(--text-light); margin-top: 6px; letter-spacing: .08em; }
+
+.main-container {
+  width: 100%;
+  max-width: 560px;
+  padding: 0 14px;
+  padding-left: max(14px, env(safe-area-inset-left, 0px));
+  padding-right: max(14px, env(safe-area-inset-right, 0px));
+  padding-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+/* ===== 状态栏 ===== */
+.status-bar {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  width: 100%;
+  padding: 11px 12px;
+  background: var(--card-bg);
+  border-radius: 12px;
+  margin-bottom: 12px;
+  border: 1px solid rgba(201,169,89,0.15);
+  gap: 8px;
+}
+.status-item { display: flex; align-items: center; gap: 5px; font-size: .76rem; color: var(--text-light); white-space: nowrap; }
+.status-value { color: var(--gold-light); font-weight: 600; font-size: .95rem; }
+.status-value.name { max-width: 6.5em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ===== 卦象展示区 ===== */
+.hexagram-display {
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 18px 10px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(201,169,89,0.2);
+  margin-bottom: 12px;
+  position: relative;
+  overflow: hidden;
+}
+.hexagram-display::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(201,169,89,0.03) 0%, transparent 70%);
+  pointer-events: none;
+}
+.yao-container { display: flex; flex-direction: column; align-items: center; gap: var(--gap); position: relative; }
+.yao-row { display: flex; align-items: center; gap: 8px; position: relative; }
+.yao-label { width: 3.2em; text-align: right; font-size: .72rem; color: var(--text-light); flex: none; }
+.yao-bars { display: flex; gap: 4px; transition: all .4s ease; }
+.yao-bar {
+  height: clamp(9px, 2.4vw, 12px);
+  border-radius: var(--bar-radius);
+  transition: all .5s cubic-bezier(.34,1.56,.64,1);
+  background: var(--yin);
+}
+.yao-bar.active-yang { background: var(--gold); }
+.yao-bar.active-yang.full { width: calc(var(--bar-unit) * 2 + 4px); }
+.yao-bar.active-yang.split { width: var(--bar-unit); }
+.yao-bar.pending { width: calc(var(--bar-unit) * 2 + 4px); background: rgba(201,169,89,0.12); }
+.yao-bar.active-yin.split { width: var(--bar-unit); background: #3a3a5a; }
+.yao-value { width: 2em; font-size: .78rem; text-align: center; font-weight: 600; color: var(--text-light); flex: none; }
+.yao-value.yang { color: var(--gold-light); }
+.yao-value.yin { color: #7a7a9a; }
+
+/* 卦名（卦象区底部，边掷边显示） */
+.hex-name-live {
+  margin-top: 12px;
+  min-height: 1.6em;
+  font-size: .8rem;
+  color: var(--text-light);
+  letter-spacing: .06em;
+  text-align: center;
+}
+.hex-name-live b { color: var(--gold); font-weight: 400; }
+
+/* ===== 硬币 ===== */
+.coins-area {
+  display: flex;
+  gap: clamp(10px, 4vw, 20px);
+  margin-bottom: 12px;
+  height: 54px;
+  align-items: center;
+  justify-content: center;
+  perspective: 600px;
+}
+.coin {
+  width: clamp(42px, 13vw, 54px);
+  height: clamp(42px, 13vw, 54px);
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform .35s ease;
+}
+.coin-face {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(1rem, 4.6vw, 1.35rem);
+  font-weight: 700;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  background: linear-gradient(135deg, #e8d5a3, #c9a959);
+  color: #8b6914;
+  box-shadow: 0 4px 14px rgba(201,169,89,0.35), inset 0 2px 4px rgba(255,255,255,0.3);
+}
+.coin-face.back { transform: rotateY(180deg); background: linear-gradient(135deg, #b9a888, #8c7a4e); color: #3a2f10; }
+.coin.tossing { animation: coin-toss .42s linear infinite; }
+@keyframes coin-toss {
+  0%   { transform: rotateY(0deg)   translateY(0); }
+  50%  { transform: rotateY(540deg) translateY(-14px); }
+  100% { transform: rotateY(1080deg) translateY(0); }
+}
+.coin.settle-yang { animation: none; transform: rotateY(0deg); filter: drop-shadow(0 0 8px rgba(240,192,64,.65)); }
+.coin.settle-yin  { animation: none; transform: rotateY(180deg); filter: drop-shadow(0 0 8px rgba(140,122,78,.5)); }
+
+/* ===== 按钮 ===== */
+.action-bar {
+  position: sticky;
+  bottom: 0;
+  width: 100%;
+  margin-top: auto;
+  padding: 10px 0 calc(env(safe-area-inset-bottom, 0px) + 12px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  background: linear-gradient(to top, var(--bg) 62%, rgba(26,26,46,0));
+  z-index: 20;
+}
+.btn {
+  width: 100%;
+  min-height: 52px;
+  padding: 15px 24px;
+  font-size: 1.08rem;
+  font-family: inherit;
+  border: none;
+  border-radius: 30px;
+  cursor: pointer;
+  letter-spacing: .1em;
+  transition: transform .18s ease, box-shadow .25s ease, background .25s ease;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.btn-primary {
+  background: linear-gradient(135deg, #c9a959, #a07828);
+  color: #1a1a2e;
+  font-weight: 600;
+  box-shadow: 0 4px 20px rgba(201,169,89,0.35);
+}
+.btn-primary:not(:disabled):active { transform: scale(.975); box-shadow: 0 2px 10px rgba(201,169,89,0.35); }
+.btn-primary:disabled { opacity: .55; cursor: not-allowed; }
+.btn-secondary {
+  background: transparent;
+  color: var(--gold);
+  border: 1.5px solid rgba(201,169,89,0.4);
+}
+.btn-secondary:active { background: rgba(201,169,89,0.12); }
+.btn-mini { width: auto; min-height: 52px; padding: 15px 18px; font-size: .9rem; letter-spacing: .04em; flex: 0 0 auto; }
+.button-group { display: flex; gap: 10px; justify-content: center; align-items: stretch; width: 100%; }
+.button-group .btn-primary { flex: 1 1 auto; min-width: 0; }
+
+/* ===== 结果面板 ===== */
+.result-panel {
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 20px 18px;
+  width: 100%;
+  margin-top: 4px;
+  border: 1px solid rgba(201,169,89,0.2);
+  display: none;
+}
+.result-panel.show { display: block; animation: panel-in .5s ease both; }
+@keyframes panel-in { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+.result-panel .gua-name { font-size: clamp(1.6rem, 7vw, 2rem); color: var(--gold); text-align: center; letter-spacing: .1em; }
+.result-panel .gua-pinyin { font-size: .92rem; color: var(--text-light); text-align: center; margin-top: 4px; }
+.result-panel .gua-level {
+  display: block;
+  padding: 5px 20px;
+  border-radius: 20px;
+  font-size: .86rem;
+  font-weight: 600;
+  margin: 12px auto 14px;
+  width: fit-content;
+}
+.lv-上上 { background: #1b5e20; color: #a5d6a7; }
+.lv-上中 { background: #0d3b66; color: #90caf9; }
+.lv-上下 { background: #3e2723; color: #ef9a9a; }
+.lv-中上 { background: #1a237e; color: #9fa8da; }
+.lv-中中 { background: #263238; color: #b0bec5; }
+.lv-中下 { background: #4a148c; color: #ce93d8; }
+.lv-下下 { background: #3e1010; color: #ef5350; }
+.result-panel .gua-desc { font-size: .92rem; line-height: 1.85; color: var(--text); text-align: justify; }
+.result-panel .gua-xiang {
+  font-size: .84rem;
+  color: var(--text-light);
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(201,169,89,0.15);
+  line-height: 1.75;
+}
+/* 变爻 / 变卦 */
+.bian-block {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(201,169,89,0.22);
+  font-size: .86rem;
+  line-height: 1.8;
+  color: var(--text-light);
+}
+.bian-block b { color: var(--gold-light); font-weight: 600; }
+.bian-block .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.chip {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(201,169,89,0.12);
+  border: 1px solid rgba(201,169,89,0.28);
+  color: var(--gold-light);
+  font-size: .78rem;
+}
+
+/* ===== 手机访问提示浮层 ===== */
+.access-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10,10,22,0.82);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 90;
+}
+.access-overlay.show { display: flex; }
+.access-card {
+  background: var(--card-bg);
+  border: 1px solid rgba(201,169,89,0.3);
+  border-radius: 16px;
+  padding: 22px 18px;
+  max-width: 360px;
+  width: 100%;
+  text-align: center;
+  line-height: 1.8;
+}
+.access-card h3 { color: var(--gold); font-size: 1.05rem; font-weight: 500; letter-spacing: .08em; margin-bottom: 10px; }
+.access-url {
+  display: block;
+  margin: 10px 0;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.25);
+  color: var(--gold-light);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: .9rem;
+  word-break: break-all;
+  user-select: all;
+  -webkit-user-select: all;
+}
+.access-card p { font-size: .82rem; color: var(--text-light); }
+#qrBox { margin: 12px auto 4px; width: 168px; height: 168px; background: #fff; border-radius: 10px; display: none; padding: 8px; }
+#qrBox img, #qrBox canvas { width: 100% !important; height: 100% !important; display: block; }
+
+/* 粒子 */
+.particle { position: fixed; pointer-events: none; font-size: 1.15rem; animation: particle-fall 1.2s ease-out forwards; z-index: 100; }
+@keyframes particle-fall {
+  0% { opacity: 1; transform: translateY(0) rotate(0deg); }
+  100% { opacity: 0; transform: translateY(110px) rotate(720deg); }
+}
+/* 爻辉光 */
+.yao-flash { animation: yao-glow .6s ease-out; }
+@keyframes yao-glow {
+  0% { filter: brightness(2); transform: scale(1.05); }
+  100% { filter: brightness(1); transform: scale(1); }
+}
+/* 尊重系统「减弱动态效果」 */
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+/* 横屏 / 矮屏：压缩纵向占用 */
+@media (max-height: 560px) {
+  .header { padding-top: calc(env(safe-area-inset-top, 0px) + 8px); }
+  .header h1 { font-size: 1.4rem; }
+  .header p { display: none; }
+  .hexagram-display { padding: 10px; }
+  .result-panel .gua-desc { font-size: .88rem; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>周 易 卜 卦</h1>
+  <p>三币起卦 · 心诚则灵</p>
+</div>
+
+<div class="main-container">
+  <div class="status-bar" id="statusBar" aria-live="polite">
+    <div class="status-item"><span>已掷</span><span class="status-value" id="throwCount">0</span><span>/6</span></div>
+    <div class="status-item"><span>本爻</span><span class="status-value" id="currentYao">—</span></div>
+    <div class="status-item"><span>本卦</span><span class="status-value name" id="hexName">—</span></div>
+  </div>
+
+  <div class="hexagram-display" id="hexagramDisplay">
+    <div class="yao-container" id="yaoContainer"></div>
+    <div class="hex-name-live" id="hexNameLive">点击下方按钮，掷币六次成卦</div>
+  </div>
+
+  <div class="coins-area" id="coinsArea" aria-hidden="true">
+    <div class="coin" id="coin1"><span class="coin-face front">乾</span><span class="coin-face back">坤</span></div>
+    <div class="coin" id="coin2"><span class="coin-face front">乾</span><span class="coin-face back">坤</span></div>
+    <div class="coin" id="coin3"><span class="coin-face front">乾</span><span class="coin-face back">坤</span></div>
+  </div>
+
+  <div class="result-panel" id="resultPanel"></div>
+
+  <div class="action-bar">
+    <div class="button-group">
+      <button class="btn btn-primary" id="btnThrow" type="button">🪙 开始卜卦</button>
+      <button class="btn btn-secondary btn-mini" id="btnReset" type="button" style="display:none">重新卜卦</button>
+      <button class="btn btn-secondary btn-mini" id="btnAccess" type="button" style="display:none">📱 手机访问</button>
+    </div>
+  </div>
+</div>
+
+<div class="access-overlay" id="accessOverlay">
+  <div class="access-card">
+    <h3>手机访问本页</h3>
+    <p>手机连到<b>同一个 Wi-Fi</b>，用浏览器打开下面的地址：</p>
+    <span class="access-url" id="accessUrl">—</span>
+    <div id="qrBox"></div>
+    <div class="button-group" style="margin-top:6px">
+      <button class="btn btn-secondary btn-mini" id="btnCopy" type="button">复制地址</button>
+      <button class="btn btn-secondary btn-mini" id="btnCloseAccess" type="button">关闭</button>
+    </div>
+    <p style="margin-top:10px;font-size:.76rem">在手机上「添加到主屏幕」，即可像 App 一样全屏离线使用。</p>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ==================== 卦象数据 ==================== */
+/* 八卦定义（下→上，1=阳，0=阴） */
+const TRIGRAMS = {
+  '乾': '111', '兑': '110', '离': '101', '震': '100',
+  '巽': '011', '坎': '010', '艮': '001', '坤': '000'
+};
+
+/* 64卦数据库（上卦, 下卦, 卦名, 拼音, 等级, 描述, 象辞） */
+const HEXAGRAM_LIST = [
+  ['乾','乾','乾为天','qián wéi tiān','上上','乾卦为《易经》六十四卦之首，纯阳之卦，象征天道运行刚健不息。乾为天、为阳、为刚、为健。得此卦者主事业顺遂、诸事亨通，但需自强不息、不可懈怠。宜积极进取，刚健中正，飞龙在天利见大人。','象曰：天行健，君子以自强不息。'],
+  ['坤','坤','坤为地','kūn wéi dì','上上','坤卦纯阴，象征大地宽厚包容。坤为地、为柔、为顺、为承载。得此卦者宜守柔顺、以静制动、厚德载物。不宜冒进，静待时机，自有贵人相助。地势坤，君子以厚德载物。','象曰：地势坤，君子以厚德载物。'],
+  ['坎','震','水雷屯','shuǐ léi zhūn','下下','屯卦象征初生之艰难。上坎为水、下震为雷，雷雨交加，万物始生而艰难。得此卦者事业初创困难重重，宜坚守正道，不可轻举妄动。需耐心等待时机成熟，不可急于求成。','象曰：云雷屯，君子以经纶。'],
+  ['艮','坎','山水蒙','shān shuǐ méng','中下','蒙卦象征启蒙与教化。上艮为山、下坎为水，山下有泉，蒙昧待启。得此卦者宜虚心求教、谨慎行事，不可自以为是。教育之道在于启发而非灌输。','象曰：山下出泉，蒙。君子以果行育德。'],
+  ['坎','乾','水天需','shuǐ tiān xū','中中','需卦象征等待。上坎为水、下乾为天，水在天上尚未降雨，需耐心等待。得此卦者时机未至，宜静待勿躁，饮食宴乐以养精蓄锐，不可急于求成。','象曰：云上于天，需。君子以饮食宴乐。'],
+  ['乾','坎','天水讼','tiān shuǐ sòng','中下','讼卦象征争讼。上乾为天、下坎为水，天与水违行，必有争讼。得此卦者易生纠纷争执，宜见好就收、得理饶人。诉讼之事中途而止为上。','象曰：天与水违行，讼。君子以作事谋始。'],
+  ['坤','坎','地水师','dì shuǐ shī','中中','师卦象征军队与征战。上坤为地、下坎为水，地中有水，容民畜众。得此卦者宜以正用兵、师出有名，不可滥用武力。主统帅之道，需刚柔并济。','象曰：地中有水，师。君子以容民畜众。'],
+  ['坎','坤','水地比','shuǐ dì bǐ','上中','比卦象征亲附与团结。上坎为水、下坤为地，水附于地亲密无间。得此卦者人际关系和睦，宜与人合作、相互扶持。团结一致力量倍增。','象曰：地上有水，比。先王以建万国，亲诸侯。'],
+  ['巽','乾','风天小畜','fēng tiān xiǎo xù','中中','小畜卦象征小有积蓄。上巽为风、下乾为天，风行天上尚未及物。得此卦者运势渐积、小有成就，但尚未大成。宜继续积累，厚积薄发。','象曰：风行天上，小畜。君子以懿文德。'],
+  ['乾','兑','天泽履','tiān zé lǚ','中中','履卦象征履行与实践。上乾为天、下兑为泽，各得其位。得此卦者宜脚踏实地、循规蹈矩、言行一致。如履虎尾，小心谨慎可得平安。','象曰：上天下泽，履。君子以辨上下，定民志。'],
+  ['坤','乾','地天泰','dì tiān tài','上上','泰卦象征通泰与和谐。上坤为地、下乾为天，天地交泰万物亨通。此乃大吉之卦，得此者诸事顺遂、上下和睦、阴阳调和，事业兴旺、家宅平安。','象曰：天地交，泰。后以财成天地之道，辅相天地之宜。'],
+  ['乾','坤','天地否','tiān dì pǐ','中下','否卦象征闭塞不通。上乾为天、下坤为地，天地不交万物不通。得此卦者时运不济、小人道长君子道消。宜退守自保，不可强求，等待时机转变。','象曰：天地不交，否。君子以俭德辟难，不可荣以禄。'],
+  ['乾','离','天火同人','tiān huǒ tóng rén','上中','同人卦象征志同道合。上乾为天、下离为火，天火同明人心相聚。得此卦者人际关系良好，宜与人协作、共同成就事业。同心协力无往不利。','象曰：天与火，同人。君子以类族辨物。'],
+  ['离','乾','火天大有','huǒ tiān dà yǒu','上上','大有卦象征大丰收。上离为火、下乾为天，火在天上光明普照。此乃大吉之卦，得此者事业昌盛、财富丰盈、如日中天。宜持盈保泰，不可骄纵。','象曰：火在天上，大有。君子以遏恶扬善，顺天休命。'],
+  ['坤','艮','地山谦','dì shān qiān','上上','谦卦象征谦虚。上坤为地、下艮为山，高山隐于地下，谦卑自牧。此卦六爻皆吉，得此者宜谦虚待人、低调行事。满招损谦受益，谦虚者终获大成。','象曰：地中有山，谦。君子以裒多益寡，称物平施。'],
+  ['震','坤','雷地豫','léi dì yù','上中','豫卦象征愉悦安乐。上震为雷、下坤为地，雷出地奋万物欢乐。得此卦者身心愉悦，宜享受生活但不可过度逸乐。顺势而为自得其乐。','象曰：雷出地奋，豫。先王以作乐崇德，殷荐之上帝。'],
+  ['兑','震','泽雷随','zé léi suí','中中','随卦象征随从与顺应。上兑为泽、下震为雷，泽中有雷随时而动。得此卦者宜顺应时势、随机应变，不可固执己见。随缘而行自然而然。','象曰：泽中有雷，随。君子以向晦入宴息。'],
+  ['艮','巽','山风蛊','shān fēng gǔ','中下','蛊卦象征弊病与整顿。上艮为山、下巽为风，山下有风物腐生虫。得此卦者事业有弊端，需励精图治、革除弊病。宜革新除旧振衰起弊。','象曰：山下有风，蛊。君子以振民育德。'],
+  ['坤','兑','地泽临','dì zé lín','上中','临卦象征临近与管理。上坤为地、下兑为泽，地临泽上居高临下。得此卦者运势向好，宜亲临其事、督导管理。以德服人则万事可成。','象曰：泽上有地，临。君子以教思无穷，容保民无疆。'],
+  ['巽','坤','风地观','fēng dì guān','中中','观卦象征观察与展示。上巽为风、下坤为地，风行地上无所不观。得此卦者宜多观察少行动，审时度势以静观变。为人表率为人所观。','象曰：风行地上，观。先王以省方，观民设教。'],
+  ['离','震','火雷噬嗑','huǒ léi shì hé','中中','噬嗑卦象征咬合与刑罚。上离为火、下震为雷，雷电交加威明并施。得此卦者宜当机立断、快刀斩乱麻。明辨是非刚柔并济。','象曰：雷电，噬嗑。先王以明罚敕法。'],
+  ['艮','离','山火贲','shān huǒ bì','中中','贲卦象征文饰与美化。上艮为山、下离为火，山下有火文彩斑斓。得此卦者宜注重外表与形式的修饰，但不可舍本逐末。文质彬彬然后君子。','象曰：山下有火，贲。君子以明庶政，无敢折狱。'],
+  ['艮','坤','山地剥','shān dì bō','下下','剥卦象征剥落与衰退。上艮为山、下坤为地，山附于地剥落倾颓。得此卦者运势衰落、小人当道，宜顺势退守、保存实力，等待时机复起。','象曰：山附于地，剥。上以厚下安宅。'],
+  ['坤','震','地雷复','dì léi fù','上中','复卦象征回复与复兴。上坤为地、下震为雷，雷在地中阳气复生。得此卦者否极泰来、运势回转、一阳来复。宜把握时机重新出发。','象曰：雷在地中，复。先王以至日闭关，商旅不行。'],
+  ['乾','震','天雷无妄','tiān léi wú wàng','中中','无妄卦象征真实无虚。上乾为天、下震为雷，天下雷行真实不虚。得此卦者宜真诚待人、坦荡行事，不可有非分之想。守正不妄自有天佑。','象曰：天下雷行，物与无妄。先王以茂对时，育万物。'],
+  ['艮','乾','山天大畜','shān tiān dà xù','上中','大畜卦象征大积蓄。上艮为山、下乾为天，天在山中蓄积深厚。得此卦者学问德行日积月累、事业根基深厚。宜继续积累，前途无量。','象曰：天在山中，大畜。君子以多识前言往行，以畜其德。'],
+  ['艮','震','山雷颐','shān léi yí','中中','颐卦象征颐养与养生。上艮为山、下震为雷，山下有雷万物生长。得此卦者宜注重养生、调和饮食、休养生息。自食其力谨言慎行。','象曰：山下有雷，颐。君子以慎言语，节饮食。'],
+  ['兑','巽','泽风大过','zé fēng dà guò','中下','大过卦象征大为过甚。上兑为泽、下巽为风，泽灭木过甚也。得此卦者行事过度如栋梁弯曲，需及时调整不可一味冒进。过犹不及宜守中庸。','象曰：泽灭木，大过。君子以独立不惧，遁世无闷。'],
+  ['坎','坎','坎为水','kǎn wéi shuǐ','中下','坎卦象征险阻与陷阱。上下皆坎，重重险阻水势凶险。得此卦者身处困境、前有险阻，宜守信持正、步步为营。险中求安心诚可渡。','象曰：水洊至，习坎。君子以常德行，习教事。'],
+  ['离','离','离为火','lí wéi huǒ','中中','离卦象征光明与依附。上下皆离，光明重叠如日月在天。得此卦者宜依附正道、柔顺中庸、光明正大。柔丽乎中正故亨。','象曰：明两作，离。大人以继明照于四方。'],
+  ['兑','艮','泽山咸','zé shān xián','上中','咸卦象征感应与爱情。上兑为泽、下艮为山，山泽通气男女感应。此乃感情之卦，得此者感情融洽、婚姻美满、人际关系和谐。','象曰：山上有泽，咸。君子以虚受人。'],
+  ['震','巽','雷风恒','léi fēng héng','上中','恒卦象征恒久不变。上震为雷、下巽为风，雷风相与恒久不息。得此卦者宜持之以恒、坚守正道，不可半途而废。夫妻之道贵在长久。','象曰：雷风，恒。君子以立不易方。'],
+  ['乾','艮','天山遁','tiān shān dùn','中下','遁卦象征退避。上乾为天、下艮为山，天下有山山高天远，遁世无争。得此卦者宜退守自保、远离是非，不可与小人纠缠。','象曰：天下有山，遁。君子以远小人，不恶而严。'],
+  ['震','乾','雷天大壮','léi tiān dà zhuàng','上中','大壮卦象征强盛壮大。上震为雷、下乾为天，雷行天上声势浩大。得此卦者运势强盛如日中天，但切忌恃强凌弱，宜守正用壮。','象曰：雷在天上，大壮。君子以非礼弗履。'],
+  ['离','坤','火地晋','huǒ dì jìn','上中','晋卦象征前进与晋升。上离为火、下坤为地，明出地上旭日东升。得此卦者事业蒸蒸日上、步步高升、前途光明。宜积极进取不可懈怠。','象曰：明出地上，晋。君子以自昭明德。'],
+  ['坤','离','地火明夷','dì huǒ míng yí','中下','明夷卦象征光明受损。上坤为地、下离为火，明入地中光明受伤。得此卦者处境艰难，宜韬光养晦、隐忍待时。黑暗终将过去曙光在前。','象曰：明入地中，明夷。君子以莅众，用晦而明。'],
+  ['巽','离','风火家人','fēng huǒ jiā rén','上中','家人卦象征家庭。上巽为风、下离为火，风自火出一家和睦。得此卦者家庭和乐、眷属安康，宜以和为贵、治家有道。','象曰：风自火出，家人。君子以言有物而行有恒。'],
+  ['离','兑','火泽睽','huǒ zé kuí','中下','睽卦象征乖离与分歧。上离为火、下兑为泽，火炎上泽润下，二志不同。得此卦者易有意见不合，宜求同存异、以柔克刚。','象曰：上火下泽，睽。君子以同而异。'],
+  ['坎','艮','水山蹇','shuǐ shān jiǎn','下下','蹇卦象征艰难险阻。上坎为水、下艮为山，山上有水行路艰难。得此卦者诸事不顺、前路坎坷。宜暂退一步、寻求贵人相助，不可强行冒进。','象曰：山上有水，蹇。君子以反身修德。'],
+  ['震','坎','雷水解','léi shuǐ jiě','上中','解卦象征解脱与化解。上震为雷、下坎为水，雷雨作而百难解。得此卦者困难将解、问题迎刃而解。宜宽恕待人化解宿怨。','象曰：雷雨作，解。君子以赦过宥罪。'],
+  ['艮','兑','山泽损','shān zé sǔn','中下','损卦象征减损。上艮为山、下兑为泽，损下益上非长久之道。得此卦者有所损失，宜节制欲望、损己利人。损所当损方能得益。','象曰：山下有泽，损。君子以惩忿窒欲。'],
+  ['巽','震','风雷益','fēng léi yì','上上','益卦象征增益。上巽为风、下震为雷，风雷相益互相助长。此乃大吉之卦，得此者运势增益、事业进步。宜见善则迁有过则改。','象曰：风雷，益。君子以见善则迁，有过则改。'],
+  ['兑','乾','泽天夬','zé tiān guài','中中','夬卦象征决断。上兑为泽、下乾为天，泽上天水决而溢。得此卦者面临重大决断，宜当机立断不可犹豫不决。施禄及下居德则忌。','象曰：泽上于天，夬。君子以施禄及下，居德则忌。'],
+  ['乾','巽','天风姤','tiān fēng gòu','中中','姤卦象征相遇。上乾为天、下巽为风，天下有风万物相遇。得此卦者有意外之遇，宜谨慎应对不可轻信。一阴始生防微杜渐。','象曰：天下有风，姤。后以施命诰四方。'],
+  ['兑','坤','泽地萃','zé dì cuì','上中','萃卦象征聚集。上兑为泽、下坤为地，泽聚于地万物汇聚。得此卦者人气聚集，宜聚会交流、共谋大事。团结力量成就非凡。','象曰：泽上于地，萃。君子以除戎器，戒不虞。'],
+  ['坤','巽','地风升','dì fēng shēng','上上','升卦象征上升。上坤为地、下巽为风，地中生木步步高升。此乃大吉之卦，得此者事业蒸蒸日上、如木之生长、日见其增。宜顺势而为积小成高。','象曰：地中生木，升。君子以顺德，积小以高大。'],
+  ['兑','坎','泽水困','zé shuǐ kùn','下下','困卦象征困顿。上兑为泽、下坎为水，泽无水枯竭困顿。得此卦者身陷困境、进退两难。宜坚守信念、不为困境所屈，终有出头之日。','象曰：泽无水，困。君子以致命遂志。'],
+  ['坎','巽','水风井','shuǐ fēng jǐng','中中','井卦象征水井与养民。上坎为水、下巽为风，木上有水汲水养人。得此卦者宜安居乐业、滋养他人，同时也不断自我提升。井养而不穷。','象曰：木上有水，井。君子以劳民劝相。'],
+  ['兑','离','泽火革','zé huǒ gé','中中','革卦象征变革。上兑为泽、下离为火，泽中有火水火相息，变革之象。得此卦者面临变革，宜顺应时势、推陈出新、与时俱进。','象曰：泽中有火，革。君子以治历明时。'],
+  ['离','巽','火风鼎','huǒ fēng dǐng','上中','鼎卦象征鼎器与更新。上离为火、下巽为风，木上有火烹饪之象。得此卦者宜革故鼎新、成就大事。如鼎之稳重正位凝命。','象曰：木上有火，鼎。君子以正位凝命。'],
+  ['震','震','震为雷','zhèn wéi léi','中中','震卦象征震动与惊雷。上下皆震，雷声重叠令人惊惧。得此卦者突遇变故，宜镇定自若、临危不乱。恐惧修省反躬自问。','象曰：洊雷，震。君子以恐惧修省。'],
+  ['艮','艮','艮为山','gèn wéi shān','中中','艮卦象征停止与静止。上下皆艮，重山叠嶂止而不前。得此卦者宜适可而止、知止不殆。思不出其位安守本分。','象曰：兼山，艮。君子以思不出其位。'],
+  ['巽','艮','风山渐','fēng shān jiàn','上中','渐卦象征渐进。上巽为风、下艮为山，山上有木渐长渐高。得此卦者宜循序渐进、不可急于求成。万事缓行方得善终。','象曰：山上有木，渐。君子以居贤德，善俗。'],
+  ['震','兑','雷泽归妹','léi zé guī mèi','中下','归妹卦象征婚嫁。上震为雷、下兑为泽，雷动泽悦男女婚配。得此卦者宜关注婚姻家庭，但需知永终知敝，婚嫁之事不可草率。','象曰：泽上有雷，归妹。君子以永终知敝。'],
+  ['震','离','雷火丰','léi huǒ fēng','上中','丰卦象征丰盛。上震为雷、下离为火，雷电交加丰盛之极。得此卦者运势鼎盛如日中天，但盛极必衰，宜持盈保泰防患未然。','象曰：雷电皆至，丰。君子以折狱致刑。'],
+  ['离','艮','火山旅','huǒ shān lǚ','中下','旅卦象征旅行与客居。上离为火、下艮为山，山上有火旅人之象。得此卦者漂泊在外，宜谨慎行事、入乡随俗。旅居之道柔顺谦和。','象曰：山上有火，旅。君子以明慎用刑而不留狱。'],
+  ['巽','巽','巽为风','xùn wéi fēng','中中','巽卦象征顺从与渗透。上下皆巽，风行无孔不入。得此卦者宜顺势而为、以柔克刚、随风巽伏。申命行事令行禁止。','象曰：随风，巽。君子以申命行事。'],
+  ['兑','兑','兑为泽','duì wéi zé','上中','兑卦象征喜悦与言说。上下皆兑，两泽相连欣悦交流。得此卦者心情愉悦、人际关系和谐，宜交友讲习。朋友讲习其乐融融。','象曰：丽泽，兑。君子以朋友讲习。'],
+  ['巽','坎','风水涣','fēng shuǐ huàn','中中','涣卦象征涣散与离散。上巽为风、下坎为水，风行水上涣散分离。得此卦者人心涣散，宜凝聚人心、统一意志。聚合人心方可成事。','象曰：风行水上，涣。先王以享于帝，立庙。'],
+  ['坎','兑','水泽节','shuǐ zé jié','中中','节卦象征节制。上坎为水、下兑为泽，泽上有水当有节制。得此卦者宜节俭自律、不可放纵。制数度、议德行，凡事有度。','象曰：泽上有水，节。君子以制数度，议德行。'],
+  ['巽','兑','风泽中孚','fēng zé zhōng fú','上中','中孚卦象征诚信。上巽为风、下兑为泽，泽上有风诚信感人。得此卦者宜以诚待人、守信不欺。信及豚鱼，诚信可感化一切。','象曰：泽上有风，中孚。君子以议狱缓死。'],
+  ['震','艮','雷山小过','léi shān xiǎo guò','中中','小过卦象征小有过失。上震为雷、下艮为山，山上有雷小有过越。得此卦者宜注意小节，小过可补太过则危。行过乎恭用过乎俭。','象曰：山上有雷，小过。君子以行过乎恭，丧过乎哀，用过乎俭。'],
+  ['坎','离','水火既济','shuǐ huǒ jì jì','中中','既济卦象征事已完成。上坎为水、下离为火，水火相交各得其用。得此卦者事情将成，但成功之后宜思虑患难，居安思危防微杜渐。','象曰：水在火上，既济。君子以思患而豫防之。'],
+  ['离','坎','火水未济','huǒ shuǐ wèi jì','中中','未济卦象征事未完成。上离为火、下坎为水，火水不交事犹未成。得此卦者事业尚未完成，宜慎始慎终、不可半途而废。','象曰：火在水上，未济。君子以慎辨物居方。']
+];
+
+/* 查找表：key = 下卦3位 + 上卦3位（初爻→上爻） */
+const HEXAGRAM_MAP = (function () {
+  const map = {};
+  HEXAGRAM_LIST.forEach(function (item) {
+    const upper = item[0], lower = item[1];
+    map[TRIGRAMS[lower] + TRIGRAMS[upper]] = {
+      upper: upper, lower: lower,
+      name: item[2], pinyin: item[3], level: item[4], desc: item[5], xiang: item[6]
+    };
+  });
+  return map;
+})();
+
+const TRIGRAM_KEY = {}; // 二进制 → 卦名
+Object.keys(TRIGRAMS).forEach(function (name) { TRIGRAM_KEY[TRIGRAMS[name]] = name; });
+
+/* ==================== 状态 ==================== */
+const state = { throws: [], isThrowing: false };
+const YAO_NAMES = ['初爻', '二爻', '三爻', '四爻', '五爻', '上爻'];
+
+/* 演示模式：index.html?demo=6 自动连掷 6 次（用于演示/自测，正常使用无需理会） */
+const DEMO = Math.min(6, Math.max(0, parseInt((location.search.match(/[?&]demo=(\d+)/) || [])[1], 10) || 0));
+
+/* ==================== DOM ==================== */
+const $ = function (id) { return document.getElementById(id); };
+const els = {
+  container: $('yaoContainer'),
+  throwCount: $('throwCount'),
+  currentYao: $('currentYao'),
+  hexName: $('hexName'),
+  hexNameLive: $('hexNameLive'),
+  coin: [$('coin1'), $('coin2'), $('coin3')],
+  btnThrow: $('btnThrow'),
+  btnReset: $('btnReset'),
+  btnAccess: $('btnAccess'),
+  panel: $('resultPanel'),
+  display: $('hexagramDisplay')
+};
+
+/* ==================== 初始化 ==================== */
+function initYaos() {
+  let html = '';
+  for (let i = 6; i >= 1; i--) {
+    html += '<div class="yao-row">' +
+              '<span class="yao-label">第' + i + '爻</span>' +
+              '<div class="yao-bars" id="yaoBars' + i + '"><div class="yao-bar pending" id="yaoBar' + i + '"></div></div>' +
+              '<span class="yao-value" id="yaoVal' + i + '"></span>' +
+            '</div>';
+  }
+  els.container.innerHTML = html;
+  els.throwCount.textContent = '0';
+  els.currentYao.textContent = '—';
+  els.hexName.textContent = '—';
+  els.hexNameLive.textContent = '点击下方按钮，掷币六次成卦';
+}
+
+function resetCoins() {
+  els.coin.forEach(function (c) { c.className = 'coin'; c.style.transform = ''; });
+}
+
+function resetAll() {
+  state.throws = [];
+  state.isThrowing = false;
+  initYaos();
+  els.btnThrow.style.display = '';
+  els.btnThrow.disabled = false;
+  els.btnThrow.textContent = '🪙 开始卜卦';
+  els.btnReset.style.display = 'none';
+  els.panel.classList.remove('show');
+  els.panel.innerHTML = '';
+  resetCoins();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ==================== 掷币 ==================== */
+function vibrate(pattern) {
+  if (navigator.vibrate) { try { navigator.vibrate(pattern); } catch (e) {} }
+}
+
+function throwCoins() {
+  if (state.isThrowing || state.throws.length >= 6) return;
+  state.isThrowing = true;
+
+  els.btnThrow.disabled = true;
+  els.btnThrow.textContent = '投掷中…';
+  els.coin.forEach(function (c) {
+    c.className = 'coin tossing';
+    c.style.transform = '';
+  });
+  vibrate(12);
+  setTimeout(function () { settleThrow(); }, DEMO ? 30 : 900);
+}
+
+function settleThrow() {
+  if (!state.isThrowing) return;
+  {
+    /* 密码学级随机：正面=3，反面=2 */
+    let coins;
+    if (window.crypto && window.crypto.getRandomValues) {
+      const arr = new Uint32Array(3);
+      window.crypto.getRandomValues(arr);
+      coins = Array.from(arr, function (v) { return (v % 2 === 0) ? 3 : 2; });
+    } else {
+      coins = [0, 0, 0].map(function () { return Math.random() < 0.5 ? 3 : 2; });
+    }
+
+    coins.forEach(function (v, i) {
+      const c = els.coin[i];
+      c.className = 'coin ' + (v === 3 ? 'settle-yang' : 'settle-yin');
+    });
+
+    const sum = coins[0] + coins[1] + coins[2];
+    const yao = (sum === 6 || sum === 8) ? 'yin' : 'yang';
+    const changing = (sum === 6 || sum === 9);
+
+    state.throws.push({ coins: coins, sum: sum, yao: yao, changing: changing });
+
+    spawnParticles(yao);
+    updateHexagramDisplay();
+    vibrate(yao === 'yang' ? 18 : [8, 40, 18]);
+
+    const n = state.throws.length;
+    els.throwCount.textContent = n;
+    els.currentYao.textContent = sum + ' · ' + (yao === 'yang' ? '阳' : '阴') + (changing ? ' 变' : '');
+    updateLiveHexName();
+
+    if (n >= 6) {
+      els.btnThrow.style.display = 'none';
+      els.btnAccess.style.display = 'none';
+      showResult();
+    } else {
+      els.btnReset.style.display = '';
+      els.btnThrow.disabled = false;
+      els.btnThrow.textContent = '🪙 掷第 ' + (n + 1) + ' 次';
+      if (DEMO) setTimeout(throwCoins, 40);
+    }
+    state.isThrowing = false;
+  }
+}
+
+function updateHexagramDisplay() {
+  state.throws.forEach(function (t, i) {
+    const idx = i + 1;
+    const valEl = $('yaoVal' + idx);
+    const barsDiv = $('yaoBars' + idx);
+    if (!valEl || !barsDiv) return;
+
+    if (t.yao === 'yang') {
+      barsDiv.innerHTML = '<div class="yao-bar active-yang full yao-flash"></div>';
+      valEl.textContent = t.sum + (t.changing ? ' ○' : '');
+      valEl.className = 'yao-value yang';
+    } else {
+      barsDiv.innerHTML = '<div class="yao-bar active-yin split yao-flash"></div>' +
+                          '<div class="yao-bar active-yin split yao-flash"></div>';
+      valEl.textContent = t.sum + (t.changing ? ' ×' : '');
+      valEl.className = 'yao-value yin';
+    }
+    setTimeout(function () {
+      barsDiv.querySelectorAll('.yao-flash').forEach(function (el) { el.classList.remove('yao-flash'); });
+    }, 600);
+  });
+}
+
+function spawnParticles(yao) {
+  const symbols = yao === 'yang' ? ['☰', '⚊', '☀', '✦'] : ['☷', '⚋', '☽', '✧'];
+  const colors = yao === 'yang' ? ['#c9a959', '#e8d5a3', '#f0c040'] : ['#7a7a9a', '#5a5a7a', '#3a3a4a'];
+  const host = els.display.getBoundingClientRect();
+  for (let i = 0; i < 6; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.textContent = symbols[Math.floor(Math.random() * symbols.length)];
+    p.style.left = (host.left + host.width * (0.3 + Math.random() * 0.4)) + 'px';
+    p.style.top = (host.top + host.height * (0.3 + Math.random() * 0.3)) + 'px';
+    p.style.color = colors[Math.floor(Math.random() * colors.length)];
+    p.style.animationDuration = (0.8 + Math.random() * 1.1) + 's';
+    document.body.appendChild(p);
+    setTimeout(function () { p.remove(); }, 1700);
+  }
+}
+
+/* ==================== 卦象识别 ==================== */
+function getKeyFromYao(yaoArray) {
+  return yaoArray.map(function (y) { return y === 'yang' ? '1' : '0'; }).join('');
+}
+
+function lookup(key) {
+  if (HEXAGRAM_MAP[key]) return HEXAGRAM_MAP[key];
+  /* 兜底：用三爻拼卦名（数据表万一缺项时） */
+  const lower = TRIGRAM_KEY[key.slice(0, 3)];
+  const upper = TRIGRAM_KEY[key.slice(3, 6)];
+  if (!lower || !upper) return null;
+  return { upper: upper, lower: lower, name: upper + lower, pinyin: '', level: '中中', desc: '未收录该卦详细断辞。', xiang: '' };
+}
+
+function updateLiveHexName() {
+  const n = state.throws.length;
+  if (n === 0) { els.hexNameLive.textContent = '点击下方按钮，掷币六次成卦'; return; }
+  if (n < 6) {
+    const yang = state.throws.filter(function (t) { return t.yao === 'yang'; }).length;
+    els.hexNameLive.innerHTML = '已成 <b>' + n + '</b> 爻 · 阳 <b>' + yang + '</b> 阴 <b>' + (n - yang) + '</b>　还差 <b>' + (6 - n) + '</b> 爻';
+    return;
+  }
+  const data = lookup(getKeyFromYao(state.throws.map(function (t) { return t.yao; })));
+  if (data) {
+    els.hexName.textContent = data.name;
+    els.hexNameLive.innerHTML = '本卦：<b>' + data.name + '</b>';
+  }
+}
+
+/* ==================== 结果 ==================== */
+function showResult() {
+  const throws = state.throws;
+  const data = lookup(getKeyFromYao(throws.map(function (t) { return t.yao; })));
+  const changingIdx = [];
+  throws.forEach(function (t, i) { if (t.changing) changingIdx.push(i); });
+
+  if (!data) {
+    els.panel.innerHTML = '<p style="text-align:center;color:var(--text-light)">未匹配到对应卦象数据。</p>';
+    els.panel.classList.add('show');
+    els.hexName.textContent = '未知';
+    return;
+  }
+  els.hexName.textContent = data.name;
+
+  let html = '<div class="gua-name">' + data.name + '</div>';
+  if (data.pinyin) html += '<div class="gua-pinyin">' + data.pinyin + '</div>';
+  html += '<span class="gua-level lv-' + data.level + '">' + data.level + '卦</span>';
+  html += '<div class="gua-desc">' + data.desc + '</div>';
+  if (data.xiang) html += '<div class="gua-xiang">' + data.xiang + '</div>';
+
+  /* 变爻说明 */
+  if (changingIdx.length) {
+    const changedYao = throws.map(function (t) { return t.changing ? (t.yao === 'yang' ? 'yin' : 'yang') : t.yao; });
+    const zhi = lookup(getKeyFromYao(changedYao));
+    html += '<div class="bian-block">变爻 ' + changingIdx.length + ' 个：';
+    html += '<div class="chips">' + changingIdx.map(function (i) {
+      const t = throws[i];
+      return '<span class="chip">' + YAO_NAMES[i] + ' ' + t.sum + (t.yao === 'yang' ? ' ○' : ' ×') + '</span>';
+    }).join('') + '</div>';
+    if (zhi) {
+      html += '<div style="margin-top:8px">之卦（变卦）：<b>' + zhi.name + '</b>' +
+              (zhi.pinyin ? ' <span style="opacity:.75">' + zhi.pinyin + '</span>' : '') + '</div>';
+      html += '<div style="margin-top:4px">' + zhi.desc + '</div>';
+    }
+    html += '</div>';
+  } else {
+    html += '<div class="bian-block">六爻皆静，无变爻：以本卦卦辞断之。</div>';
+  }
+
+  els.panel.innerHTML = html;
+  els.panel.classList.add('show');
+
+  /* 结果出来后自动滚到结果处（留出底部按钮空间） */
+  setTimeout(function () {
+    const rect = els.panel.getBoundingClientRect();
+    const target = window.pageYOffset + rect.top - 12;
+    window.scrollTo({ top: target, behavior: 'smooth' });
+  }, 260);
+}
+
+/* ==================== 手机访问地址 ==================== */
+function initAccess() {
+  const isHttp = location.protocol === 'http:' || location.protocol === 'https:';
+  const isLocalHost = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+  if (!isHttp || !isLocalHost) {
+    els.btnAccess.style.display = 'none';
+    return;
+  }
+  els.btnAccess.style.display = '';
+
+  /* 用 WebRTC 探出内网 IP（浏览器不暴露本机 IP） */
+  let lanIP = null;
+  try {
+    const pc = new RTCPeerConnection({ iceServers: [] });
+    pc.createDataChannel('x');
+    pc.onicecandidate = function (e) {
+      if (!e || !e.candidate || !e.candidate.candidate) return;
+      const m = /([0-9]{1,3}(?:\.[0-9]{1,3}){3})/.exec(e.candidate.candidate);
+      if (m && m[1] !== '0.0.0.0' && !/^127\./.test(m[1])) { lanIP = m[1]; pc.close(); }
+    };
+    pc.createOffer().then(function (o) { pc.setLocalDescription(o); }).catch(function () {});
+  } catch (e) {}
+
+  els.btnAccess.addEventListener('click', function () {
+    const host = lanIP || location.hostname;
+    const url = location.protocol + '//' + host + (location.port ? ':' + location.port : '') + location.pathname;
+    $('accessUrl').textContent = url;
+    $('accessOverlay').classList.add('show');
+    buildQR(url);
+  });
+  $('btnCloseAccess').addEventListener('click', function () { $('accessOverlay').classList.remove('show'); });
+  $('accessOverlay').addEventListener('click', function (e) {
+    if (e.target === $('accessOverlay')) $('accessOverlay').classList.remove('show');
+  });
+  $('btnCopy').addEventListener('click', function () {
+    const txt = $('accessUrl').textContent;
+    const done = function () {
+      $('btnCopy').textContent = '✓ 已复制';
+      setTimeout(function () { $('btnCopy').textContent = '复制地址'; }, 1500);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(txt).then(done).catch(fallbackCopy);
+    } else { fallbackCopy(); }
+    function fallbackCopy() {
+      const ta = document.createElement('textarea');
+      ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); done(); } catch (e) {}
+      ta.remove();
+    }
+  });
+}
+
+let qrBuilt = false;
+function buildQR(url) {
+  if (qrBuilt) return;
+  qrBuilt = true;
+  const box = $('qrBox');
+  const s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js';
+  s.onload = function () {
+    try {
+      new QRCode(box, { text: url, width: 152, height: 152, correctLevel: QRCode.CorrectLevel.M });
+      box.style.display = 'block';
+    } catch (e) { box.style.display = 'none'; qrBuilt = false; }
+  };
+  s.onerror = function () { qrBuilt = false; };
+  document.head.appendChild(s);
+}
+
+/* ==================== 交互绑定 ==================== */
+els.btnThrow.addEventListener('click', throwCoins);
+els.btnReset.addEventListener('click', resetAll);
+
+document.addEventListener('keydown', function (e) {
+  if ((e.code === 'Space' || e.key === 'Enter') && els.btnThrow.style.display !== 'none' && !els.btnThrow.disabled) {
+    e.preventDefault();
+    throwCoins();
+  }
+});
+
+/* ==================== 启动 ==================== */
+initYaos();
+initAccess();
+
+/* 演示模式自动掷币 */
+(function runDemo() {
+  if (!DEMO) return;
+  let n = 0;
+  (function step() {
+    if (n++ >= DEMO) return;
+    throwCoins();
+    setTimeout(step, 120);
+  })();
+})();
+</script>
+</body>
+</html>
